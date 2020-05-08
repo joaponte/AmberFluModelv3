@@ -168,11 +168,9 @@ class StatisticsSteppable(SteppableBasePy):
 
         self.cellular_infection =  False
         self.cellular_infection_time = 0.0
-        self.cellular_infection_threshold = 1.0
-
         self.Ambersmodel_infection = False
         self.Ambersmodel_infection_time = 0.0
-        self.Ambersmodel_infection_threshold = self.cellular_infection_threshold/self.initial_uninfected * self.sbml.ambersmithsimple['T0']
+        self.infection_threshold = 0.1
 
         self.plot_win5 = self.add_new_plot_window(title='Residuals',
                                                   x_axis_title='days',
@@ -183,15 +181,14 @@ class StatisticsSteppable(SteppableBasePy):
         self.plot_win5.add_plot("dI1", style='Lines', color='orange', size=5)
         self.plot_win5.add_plot("dI2", style='Lines', color='green', size=5)
 
-
     def step(self, mcs):
         if self.cellular_infection == False:
-            if len(self.cell_list_by_type(self.I1)) >= self.cellular_infection_threshold:
+            if len(self.cell_list_by_type(self.I1))/self.initial_uninfected >= self.infection_threshold:
                 self.cellular_infection_time = mcs
                 self.cellular_infection = True
 
         if self.Ambersmodel_infection == False:
-            if self.sbml.ambersmithsimple['I1'] >= self.Ambersmodel_infection_threshold:
+            if self.sbml.ambersmithsimple['I1']/self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
                 self.Ambersmodel_infection_time = mcs
                 self.Ambersmodel_infection =  True
 
@@ -211,8 +208,5 @@ class StatisticsSteppable(SteppableBasePy):
 #         # Josh--you will need to save the time series in a set of lists so you can do this
 #         # Once both times series have had infection begin
 #         # Plot (x(t-starttime)-X(t-cellstarttime)) for each series
-#
 #         # Could do same thing to show virus with lags and also RMS deviation with lags
-#
-
 #         #Next step, have virus diffuse and cells infected by viral field rather than the external variable
