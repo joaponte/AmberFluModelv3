@@ -2,7 +2,7 @@ from cc3d.core.PySteppables import *
 import numpy as np
 
 plot_StandAlone = False
-plot_CellModel = False
+plot_CellModel = True
 overlay_AmbersModel = False
 plot_Residuals = False
 
@@ -13,6 +13,7 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
+
 ModelString = '''        
         model ambersmithsimple()
         
@@ -89,6 +90,9 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list)  # Scale factor for fraction of cells infected
         self.ExtracellularVirus = self.sbml.ambersmithsimple['V']
+        self.ExtracellularVirus1 = self.sbml.ambersmithsimple['V']
+        self.get_xml_element('virus_dc').cdata = 0.0
+        self.get_xml_element('virus_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
 
         if plot_CellModel:
             self.plot_win3 = self.add_new_plot_window(title='CPM Cells',
@@ -113,6 +117,7 @@ class CellularModelSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=False,config_options={'legend': True})
             self.plot_win4.add_plot("V", style='Lines', color='blue', size=5)
+            self.plot_win4.add_plot("V1", style='Dots', color='blue', size=5)
 
             if overlay_AmbersModel:
                 self.plot_win4.add_plot("AV", style='Dots', color='blue', size=5)
@@ -146,13 +151,19 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
 
+        secretor = self.get_field_secretor("Virus")
         # Extracellular Virus
         V = self.ExtracellularVirus
         p = self.sbml.ambersmithsimple['p'] / self.initial_uninfected * self.sbml.ambersmithsimple['T0'] * days_to_mcs
         c = self.sbml.ambersmithsimple['c'] * days_to_mcs
+
         for cell in self.cell_list_by_type(self.I2):
+            release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularVirus += p
+            self.ExtracellularVirus1 += release.tot_amount
+
         self.ExtracellularVirus -= c * V
+        self.ExtracellularVirus1 -= c * self.ExtracellularVirus1
 
         if plot_CellModel:
             self.plot_win3.add_data_point("U", mcs * days_to_mcs, len(self.cell_list_by_type(self.U)) / self.initial_uninfected)
@@ -160,6 +171,7 @@ class CellularModelSteppable(SteppableBasePy):
             self.plot_win3.add_data_point("I2", mcs * days_to_mcs,len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
             self.plot_win3.add_data_point("D", mcs * days_to_mcs,len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
             self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
+            self.plot_win4.add_data_point("V1", mcs * days_to_mcs, np.log10(self.ExtracellularVirus1))
 
             if overlay_AmbersModel:
                 self.plot_win3.add_data_point("AU", mcs * days_to_mcs, self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
