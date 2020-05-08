@@ -3,7 +3,8 @@ import numpy as np
 
 plot_StandAlone = False
 plot_CellModel = True
-plot_AmberModel = True
+overlay_AmbersModel = True
+plot_Residuals = True
 
 feedback = True
 
@@ -88,26 +89,27 @@ class CellularModelSteppable(SteppableBasePy):
         self.initial_uninfected = len(self.cell_list)  # Scale factor for fraction of cells infected
         self.ExtracellularVirus = self.sbml.ambersmithsimple['V']
 
-        self.plot_win3 = self.add_new_plot_window(title='CPM Cells',
-                                                  x_axis_title='days',
-                                                  y_axis_title='Variables', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
-        self.plot_win3.add_plot("U", style='Lines', color='red', size=5)
-        self.plot_win3.add_plot("I1", style='Lines', color='orange', size=5)
-        self.plot_win3.add_plot("I2", style='Lines', color='green', size=5)
+        if plot_CellModel:
+            self.plot_win3 = self.add_new_plot_window(title='CPM Cells',
+                                                    x_axis_title='days',
+                                                    y_axis_title='Variables', x_scale_type='linear',
+                                                     y_scale_type='linear',
+                                                    grid=False)
+            self.plot_win3.add_plot("U", style='Lines', color='red', size=5)
+            self.plot_win3.add_plot("I1", style='Lines', color='orange', size=5)
+            self.plot_win3.add_plot("I2", style='Lines', color='green', size=5)
 
-        self.plot_win3.add_plot("AU", style='Dots', color='red', size=5)
-        self.plot_win3.add_plot("AI1", style='Dots', color='orange', size=5)
-        self.plot_win3.add_plot("AI2", style='Dots', color='green', size=5)
+            self.plot_win3.add_plot("AU", style='Dots', color='red', size=5)
+            self.plot_win3.add_plot("AI1", style='Dots', color='orange', size=5)
+            self.plot_win3.add_plot("AI2", style='Dots', color='green', size=5)
 
-        self.plot_win4 = self.add_new_plot_window(title='CPM Virus',
-                                                  x_axis_title='days',
-                                                  y_axis_title='Variables', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
-        self.plot_win4.add_plot("V", style='Lines', color='blue', size=5)
-        self.plot_win4.add_plot("AV", style='Dots', color='blue', size=5)
+            self.plot_win4 = self.add_new_plot_window(title='CPM Virus',
+                                                      x_axis_title='days',
+                                                      y_axis_title='Variables', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False)
+            self.plot_win4.add_plot("V", style='Lines', color='blue', size=5)
+            self.plot_win4.add_plot("AV", style='Dots', color='blue', size=5)
 
     def step(self, mcs):
         # Transition rule from U to I1
@@ -152,11 +154,11 @@ class CellularModelSteppable(SteppableBasePy):
             self.plot_win3.add_data_point("I2", mcs * days_to_mcs,len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
             self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
 
-        if plot_AmberModel:
-            self.plot_win3.add_data_point("AU", mcs * days_to_mcs, self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
-            self.plot_win3.add_data_point("AI1", mcs * days_to_mcs,self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
-            self.plot_win3.add_data_point("AI2", mcs * days_to_mcs,self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
-            self.plot_win4.add_data_point("AV", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
+            if overlay_AmbersModel:
+                self.plot_win3.add_data_point("AU", mcs * days_to_mcs, self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
+                self.plot_win3.add_data_point("AI1", mcs * days_to_mcs,self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
+                self.plot_win3.add_data_point("AI2", mcs * days_to_mcs,self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
+                self.plot_win4.add_data_point("AV", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
 
 class StatisticsSteppable(SteppableBasePy):
@@ -172,14 +174,15 @@ class StatisticsSteppable(SteppableBasePy):
         self.Ambersmodel_infection_time = 0.0
         self.infection_threshold = 0.1
 
-        self.plot_win5 = self.add_new_plot_window(title='Residuals',
-                                                  x_axis_title='days',
-                                                  y_axis_title='Variables', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
-        self.plot_win5.add_plot("dU", style='Lines', color='red', size=5)
-        self.plot_win5.add_plot("dI1", style='Lines', color='orange', size=5)
-        self.plot_win5.add_plot("dI2", style='Lines', color='green', size=5)
+        if plot_Residuals:
+            self.plot_win5 = self.add_new_plot_window(title='Residuals',
+                                                      x_axis_title='days',
+                                                      y_axis_title='Variables', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False)
+            self.plot_win5.add_plot("dU", style='Lines', color='red', size=5)
+            self.plot_win5.add_plot("dI1", style='Lines', color='orange', size=5)
+            self.plot_win5.add_plot("dI2", style='Lines', color='green', size=5)
 
     def step(self, mcs):
         if self.cellular_infection == False:
@@ -199,9 +202,10 @@ class StatisticsSteppable(SteppableBasePy):
         dI1 = (len(self.cell_list_by_type(self.I1)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
         dI2 = (len(self.cell_list_by_type(self.I2)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
 
-        self.plot_win5.add_data_point("dU", mcs * days_to_mcs, dU)
-        self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
-        self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
+        if plot_Residuals:
+            self.plot_win5.add_data_point("dU", mcs * days_to_mcs, dU)
+            self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
+            self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
 
 #         # Plot lagged differences between cell populations
 #         # Start when both populations are infected
