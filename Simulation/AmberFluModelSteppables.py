@@ -10,6 +10,8 @@ feedback = True
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 
+'''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
+supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
 ModelString = '''        
         model ambersmithsimple()
         
@@ -137,11 +139,12 @@ class CellularModelSteppable(SteppableBasePy):
                 cell.type = self.DEAD
 
         # Extracellular Virus
-        p = self.sbml.ambersmithsimple['p'] * days_to_mcs
-        I2 = len(self.cell_list_by_type(self.I2))/ self.initial_uninfected * self.sbml.ambersmithsimple['T0']
-        c = self.sbml.ambersmithsimple['c'] * days_to_mcs
         V = self.ExtracellularVirus
-        self.ExtracellularVirus += p * I2 - c * V
+        p = self.sbml.ambersmithsimple['p'] / self.initial_uninfected * self.sbml.ambersmithsimple['T0'] * days_to_mcs
+        c = self.sbml.ambersmithsimple['c'] * days_to_mcs
+        for cell in self.cell_list_by_type(self.I2):
+            self.ExtracellularVirus += p
+        self.ExtracellularVirus -= c * V
 
         if plot_CellModel:
             self.plot_win3.add_data_point("U", mcs * days_to_mcs, len(self.cell_list_by_type(self.U)) / self.initial_uninfected)
@@ -155,6 +158,54 @@ class CellularModelSteppable(SteppableBasePy):
             self.plot_win3.add_data_point("AI2", mcs * days_to_mcs,self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
             self.plot_win4.add_data_point("AV", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
+
+class StatisticsSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        self.initial_uninfected = len(self.cell_list)
+
+        self.cellular_infection =  False
+        self.cellular_infection_time = 0.0
+        self.cellular_infection_threshold = 1.0
+
+        self.Ambersmodel_infection = False
+        self.Ambersmodel_infection_time = 0.0
+        self.Ambersmodel_infection_threshold = self.cellular_infection_threshold/self.initial_uninfected * self.sbml.ambersmithsimple['T0']
+
+        self.plot_win5 = self.add_new_plot_window(title='Residuals',
+                                                  x_axis_title='days',
+                                                  y_axis_title='Variables', x_scale_type='linear',
+                                                  y_scale_type='linear',
+                                                  grid=False)
+        self.plot_win5.add_plot("dU", style='Lines', color='red', size=5)
+        self.plot_win5.add_plot("dI1", style='Lines', color='orange', size=5)
+        self.plot_win5.add_plot("dI2", style='Lines', color='green', size=5)
+
+
+    def step(self, mcs):
+        if self.cellular_infection == False:
+            if len(self.cell_list_by_type(self.I1)) >= self.cellular_infection_threshold:
+                self.cellular_infection_time = mcs
+                self.cellular_infection = True
+
+        if self.Ambersmodel_infection == False:
+            if self.sbml.ambersmithsimple['I1'] >= self.Ambersmodel_infection_threshold:
+                self.Ambersmodel_infection_time = mcs
+                self.Ambersmodel_infection =  True
+
+        print("Cellular Infection = ", self.cellular_infection_time * days_to_mcs)
+        print("ODE Infection = ", self.Ambersmodel_infection_time * days_to_mcs)
+
+        dU = (len(self.cell_list_by_type(self.U)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
+        dI1 = (len(self.cell_list_by_type(self.I1)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
+        dI2 = (len(self.cell_list_by_type(self.I2)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
+
+        self.plot_win5.add_data_point("dU", mcs * days_to_mcs, dU)
+        self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
+        self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
+
 #         # Plot lagged differences between cell populations
 #         # Start when both populations are infected
 #         # Josh--you will need to save the time series in a set of lists so you can do this
@@ -163,5 +214,5 @@ class CellularModelSteppable(SteppableBasePy):
 #
 #         # Could do same thing to show virus with lags and also RMS deviation with lags
 #
-#         #Next step have cells produce virus
+
 #         #Next step, have virus diffuse and cells infected by viral field rather than the external variable
