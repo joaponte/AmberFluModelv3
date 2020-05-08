@@ -91,7 +91,7 @@ class CellularModelSteppable(SteppableBasePy):
         self.initial_uninfected = len(self.cell_list)  # Scale factor for fraction of cells infected
         self.ExtracellularVirus = self.sbml.ambersmithsimple['V']
         self.ExtracellularVirus1 = self.sbml.ambersmithsimple['V']
-        self.get_xml_element('virus_dc').cdata = 0.0
+        self.get_xml_element('virus_dc').cdata = 1.0
         self.get_xml_element('virus_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
 
         if plot_CellModel:
@@ -117,7 +117,7 @@ class CellularModelSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=False,config_options={'legend': True})
             self.plot_win4.add_plot("V", style='Lines', color='blue', size=5)
-            self.plot_win4.add_plot("V1", style='Dots', color='blue', size=5)
+            self.plot_win4.add_plot("ExV", style='Dots', color='blue', size=5)
 
             if overlay_AmbersModel:
                 self.plot_win4.add_plot("AV", style='Dots', color='blue', size=5)
@@ -171,7 +171,7 @@ class CellularModelSteppable(SteppableBasePy):
             self.plot_win3.add_data_point("I2", mcs * days_to_mcs,len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
             self.plot_win3.add_data_point("D", mcs * days_to_mcs,len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
             self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
-            self.plot_win4.add_data_point("V1", mcs * days_to_mcs, np.log10(self.ExtracellularVirus1))
+            self.plot_win4.add_data_point("ExV", mcs * days_to_mcs, np.log10(self.ExtracellularVirus1))
 
             if overlay_AmbersModel:
                 self.plot_win3.add_data_point("AU", mcs * days_to_mcs, self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
