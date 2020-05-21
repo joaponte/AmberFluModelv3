@@ -6,9 +6,11 @@ plot_CellModel = True
 overlay_AmbersModel = True
 plot_Residuals = False
 
-## How to determine V
-#
-feedback = True
+## How to determine virus
+# -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
+#  0 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
+#  1 pulls from the field virus
+how_to_determine_V = 0
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
@@ -83,7 +85,6 @@ class AmberFluModelSteppable(SteppableBasePy):
             self.plot_win.add_data_point("D", mcs * days_to_mcs,self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
             self.plot_win2.add_data_point("V", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
-
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -124,13 +125,13 @@ class CellularModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # Transition rule from U to I1
-        if feedback == True:
-            b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
-            V = self.ExtracellularVirus / self.initial_uninfected
-
-        else:
+        if how_to_determine_V == -1 :
             b = self.sbml.ambersmithsimple['beta'] * self.sbml.ambersmithsimple['T0'] * days_to_mcs
             V = self.sbml.ambersmithsimple['V'] / self.sbml.ambersmithsimple['T0']
+
+        if how_to_determine_V == 0 :
+            b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
+            V = self.ExtracellularVirus / self.initial_uninfected
 
         p_UtoI1 = b * V
         for cell in self.cell_list_by_type(self.U):
@@ -204,12 +205,12 @@ class StatisticsSteppable(SteppableBasePy):
 
     def step(self, mcs):
         if self.cellular_infection == False:
-            if len(self.cell_list_by_type(self.I1))/self.initial_uninfected >= self.infection_threshold:
+            if len(self.cell_list_by_type(self.I1)) / self.initial_uninfected >= self.infection_threshold:
                 self.cellular_infection_time = mcs
                 self.cellular_infection = True
 
         if self.Ambersmodel_infection == False:
-            if self.sbml.ambersmithsimple['I1']/self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
+            if self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
                 self.Ambersmodel_infection_time = mcs
                 self.Ambersmodel_infection = True
 
