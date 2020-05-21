@@ -10,7 +10,7 @@ plot_Residuals = False
 # -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
 #  0 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
 #  1 pulls from the field virus
-how_to_determine_V = 1
+how_to_determine_V = 0
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
@@ -124,9 +124,7 @@ class CellularModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # Transition rule from U to I1
-        if how_to_determine_V == 1:
-            total_virus_seen = 0
-
+        total_virus_seen = 0
         for cell in self.cell_list_by_type(self.U):
             # Determine V from scalar virus from the ODE
             if how_to_determine_V == -1:
