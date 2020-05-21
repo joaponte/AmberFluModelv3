@@ -6,10 +6,10 @@ plot_CellModel = True
 overlay_AmbersModel = True
 plot_Residuals = False
 
-## How to determine virus
+## How to determine V
 # -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
 #  0 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
-#  1 pulls from the field virus
+#  1 pulls from the virus field
 how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
@@ -124,7 +124,7 @@ class CellularModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # Transition rule from U to I1
-        total_virus_seen = 0
+        secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.U):
             # Determine V from scalar virus from the ODE
             if how_to_determine_V == -1:
@@ -136,23 +136,20 @@ class CellularModelSteppable(SteppableBasePy):
                 b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
                 V = self.ExtracellularVirus / self.initial_uninfected
 
-            # Determine V from the field virus from the cellular version
+            # Determine V from the virus field
             if how_to_determine_V == 1:
-                b = self.sbml.ambersmithsimple['beta'] *  self.initial_uninfected * days_to_mcs
-                secretor = self.get_field_secretor("Virus")
+                b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
                 uptake_probability = 0.0000001
                 uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
                 V = abs(uptake.tot_amount) / uptake_probability
-                total_virus_seen += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
             # Calculate the probability of infection of individual cells based on the amount of virus PER cell
             p_UtoI1 = b * V
             if np.random.random() < p_UtoI1:
                 cell.type = self.I1
-        print(total_virus_seen)
 
-
+        # Transition rule from I1 to I2
         k = self.sbml.ambersmithsimple['k'] * days_to_mcs
         p_T1oI2 = k
         for cell in self.cell_list_by_type(self.I1):
@@ -168,7 +165,16 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
 
-        # Extracellular Virus
+        #Determine amount of extracellular virus field
+        self.ExtracellularVirus_Field = 0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.ExtracellularVirus_Field += V
+            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+        # Production of extracellular virus
         secretor = self.get_field_secretor("Virus")
         V = self.ExtracellularVirus
         p = self.sbml.ambersmithsimple['p'] / self.initial_uninfected * self.sbml.ambersmithsimple['T0'] * days_to_mcs
@@ -183,7 +189,10 @@ class CellularModelSteppable(SteppableBasePy):
             self.plot_win3.add_data_point("I1", mcs * days_to_mcs,len(self.cell_list_by_type(self.I1)) / self.initial_uninfected)
             self.plot_win3.add_data_point("I2", mcs * days_to_mcs,len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
             self.plot_win3.add_data_point("D", mcs * days_to_mcs,len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
-            self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
+            if how_to_determine_V == 1:
+                self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus_Field))
+            else:
+                self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
 
             if overlay_AmbersModel:
                 self.plot_win3.add_data_point("AU", mcs * days_to_mcs, self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
