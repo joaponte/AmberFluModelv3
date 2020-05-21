@@ -93,7 +93,6 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list)  # Scale factor for fraction of cells infected
         self.ExtracellularVirus = self.sbml.ambersmithsimple['V']
-        self.get_xml_element('virus_dc').cdata = 1.0
         self.get_xml_element('virus_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
 
         if plot_CellModel:
@@ -125,6 +124,9 @@ class CellularModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # Transition rule from U to I1
+        if how_to_determine_V == 1:
+            total_virus_seen = 0
+
         for cell in self.cell_list_by_type(self.U):
             # Determine V from scalar virus from the ODE
             if how_to_determine_V == -1:
@@ -138,32 +140,20 @@ class CellularModelSteppable(SteppableBasePy):
 
             # Determine V from the field virus from the cellular version
             if how_to_determine_V == 1:
-                b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
+                b = self.sbml.ambersmithsimple['beta'] *  self.initial_uninfected * days_to_mcs
                 secretor = self.get_field_secretor("Virus")
                 uptake_probability = 0.0000001
                 uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                V = uptake.tot_amount / uptake_probability
+                V = abs(uptake.tot_amount) / uptake_probability
+                total_virus_seen += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
             # Calculate the probability of infection of individual cells based on the amount of virus PER cell
             p_UtoI1 = b * V
             if np.random.random() < p_UtoI1:
                 cell.type = self.I1
+        print(total_virus_seen)
 
-        # if how_to_determine_V == -1 :
-        #     b = self.sbml.ambersmithsimple['beta'] * self.sbml.ambersmithsimple['T0'] * days_to_mcs
-        #     V = self.sbml.ambersmithsimple['V'] / self.sbml.ambersmithsimple['T0']
-        #
-        # if how_to_determine_V == 0 :
-        #     b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
-        #     V = self.ExtracellularVirus / self.initial_uninfected
-        #
-        # p_UtoI1 = b * V
-        # for cell in self.cell_list_by_type(self.U):
-        #     if np.random.random() < p_UtoI1:
-        #         cell.type = self.I1
-
-        # Transition rule from I1 to I2
 
         k = self.sbml.ambersmithsimple['k'] * days_to_mcs
         p_T1oI2 = k
