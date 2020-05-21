@@ -90,7 +90,7 @@
          <BoxMin x="0" y="0" z="0"/>
          <BoxMax x="256" y="256" z="1"/>
          <Gap>0</Gap>
-         <Width>3</Width>
+         <Width>2</Width>
          <Types>U</Types>
       </Region>
    </Steppable>

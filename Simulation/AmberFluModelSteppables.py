@@ -6,6 +6,8 @@ plot_CellModel = True
 overlay_AmbersModel = True
 plot_Residuals = False
 
+## How to determine V
+#
 feedback = True
 
 min_to_mcs = 10.0  # min/mcs
@@ -122,11 +124,13 @@ class CellularModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # Transition rule from U to I1
-        b = self.sbml.ambersmithsimple['beta'] * days_to_mcs
         if feedback == True:
-            V = self.ExtracellularVirus
+            b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
+            V = self.ExtracellularVirus / self.initial_uninfected
+
         else:
-            V = self.sbml.ambersmithsimple['V']
+            b = self.sbml.ambersmithsimple['beta'] * self.sbml.ambersmithsimple['T0'] * days_to_mcs
+            V = self.sbml.ambersmithsimple['V'] / self.sbml.ambersmithsimple['T0']
 
         p_UtoI1 = b * V
         for cell in self.cell_list_by_type(self.U):
