@@ -2,17 +2,22 @@ from cc3d.core.PySteppables import *
 import numpy as np
 
 plot_StandAlone = False
-plot_CellModel = False
-overlay_AmbersModel = False
+plot_CellModel = True
+overlay_AmbersModel = True
 plot_Residuals = False
 
-feedback = True
+## How to determine V
+# -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
+#  0 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
+#  1 pulls from the virus field
+how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
+
 ModelString = '''        
         model ambersmithsimple()
         
@@ -80,7 +85,6 @@ class AmberFluModelSteppable(SteppableBasePy):
             self.plot_win.add_data_point("D", mcs * days_to_mcs,self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
             self.plot_win2.add_data_point("V", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
-
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -89,6 +93,7 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list)  # Scale factor for fraction of cells infected
         self.ExtracellularVirus = self.sbml.ambersmithsimple['V']
+        self.get_xml_element('virus_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
 
         if plot_CellModel:
             self.plot_win3 = self.add_new_plot_window(title='CPM Cells',
@@ -119,14 +124,28 @@ class CellularModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # Transition rule from U to I1
-        b = self.sbml.ambersmithsimple['beta'] * days_to_mcs
-        if feedback == True:
-            V = self.ExtracellularVirus
-        else:
-            V = self.sbml.ambersmithsimple['V']
-
-        p_UtoI1 = b * V
+        secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.U):
+            # Determine V from scalar virus from the ODE
+            if how_to_determine_V == -1:
+                b = self.sbml.ambersmithsimple['beta'] * self.sbml.ambersmithsimple['T0'] * days_to_mcs
+                V = self.sbml.ambersmithsimple['V'] / self.sbml.ambersmithsimple['T0']
+
+            # Determine V from scalar virus from the cellular model
+            if how_to_determine_V == 0:
+                b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
+                V = self.ExtracellularVirus / self.initial_uninfected
+
+            # Determine V from the virus field
+            if how_to_determine_V == 1:
+                b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
+                uptake_probability = 0.0000001
+                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                V = abs(uptake.tot_amount) / uptake_probability
+                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+            # Calculate the probability of infection of individual cells based on the amount of virus PER cell
+            p_UtoI1 = b * V
             if np.random.random() < p_UtoI1:
                 cell.type = self.I1
 
@@ -146,12 +165,23 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
 
-        # Extracellular Virus
+        #Determine amount of extracellular virus field
+        self.ExtracellularVirus_Field = 0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.ExtracellularVirus_Field += V
+            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+        # Production of extracellular virus
+        secretor = self.get_field_secretor("Virus")
         V = self.ExtracellularVirus
         p = self.sbml.ambersmithsimple['p'] / self.initial_uninfected * self.sbml.ambersmithsimple['T0'] * days_to_mcs
         c = self.sbml.ambersmithsimple['c'] * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
-            self.ExtracellularVirus += p
+            release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
+            self.ExtracellularVirus += release.tot_amount
         self.ExtracellularVirus -= c * V
 
         if plot_CellModel:
@@ -159,7 +189,10 @@ class CellularModelSteppable(SteppableBasePy):
             self.plot_win3.add_data_point("I1", mcs * days_to_mcs,len(self.cell_list_by_type(self.I1)) / self.initial_uninfected)
             self.plot_win3.add_data_point("I2", mcs * days_to_mcs,len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
             self.plot_win3.add_data_point("D", mcs * days_to_mcs,len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
-            self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
+            if how_to_determine_V == 1:
+                self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus_Field))
+            else:
+                self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
 
             if overlay_AmbersModel:
                 self.plot_win3.add_data_point("AU", mcs * days_to_mcs, self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
@@ -195,17 +228,17 @@ class StatisticsSteppable(SteppableBasePy):
 
     def step(self, mcs):
         if self.cellular_infection == False:
-            if len(self.cell_list_by_type(self.I1))/self.initial_uninfected >= self.infection_threshold:
+            if len(self.cell_list_by_type(self.I1)) / self.initial_uninfected >= self.infection_threshold:
                 self.cellular_infection_time = mcs
                 self.cellular_infection = True
 
         if self.Ambersmodel_infection == False:
-            if self.sbml.ambersmithsimple['I1']/self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
+            if self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
                 self.Ambersmodel_infection_time = mcs
                 self.Ambersmodel_infection = True
 
-        print("Cellular Infection = ", self.cellular_infection_time * days_to_mcs)
-        print("ODE Infection = ", self.Ambersmodel_infection_time * days_to_mcs)
+        #print("Cellular Infection = ", self.cellular_infection_time * days_to_mcs)
+        #print("ODE Infection = ", self.Ambersmodel_infection_time * days_to_mcs)
 
         dU = (len(self.cell_list_by_type(self.U)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
         dI1 = (len(self.cell_list_by_type(self.I1)) / self.initial_uninfected) - (self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
