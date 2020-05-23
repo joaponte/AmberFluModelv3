@@ -280,14 +280,11 @@ class Data_OutputSteppable(SteppableBasePy):
 
     def start(self):
         if Data_writeout:
-            folder_path = '/Users/Josua/Downloads/AmberFluModelv3/'
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
-
+            folder_path = os.getcwd()
             file_name = 'AmberFluModel.txt'
             self.output = open(folder_path + file_name, 'w')
             self.output.write(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time','AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
             self.output.flush()
         else:
             pass
