@@ -16,7 +16,7 @@ how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 1.0 #10 in the original model
+days_to_simulate = 4.0 #10 in the original model
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -323,8 +323,8 @@ class Data_OutputSteppable(SteppableBasePy):
             self.output.flush()
 
     def finish(self):
-        self.output.close()
-
+        if Data_writeout:
+            self.output.close()
 #         # Plot lagged differences between cell populations
 #         # Start when both populations are infected
 #         # Josh--you will need to save the time series in a set of lists so you can do this
