@@ -16,6 +16,7 @@ how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
+days_to_simulate = 1.0 #10 in the original model
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -51,7 +52,7 @@ class AmberFluModelSteppable(SteppableBasePy):
 
     def start(self):
         # Uptading max simulation steps using scaling factor to simulate 10 days
-        self.get_xml_element('simulation_steps').cdata = 10.0 / days_to_mcs
+        self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
 
         # Adding free floating antimony model
         self.add_free_floating_antimony(model_string=ModelString, model_name='ambersmithsimple',
