@@ -28,7 +28,7 @@ plt.xlim([0, days])
 l1 = Line2D([0], [0], linestyle='dashed', color='black', linewidth=2.0)
 l2 = Line2D([0], [0], color='black', linewidth=2.0)
 custom_lines = [l1, l2]
-plt.legend(custom_lines, ['Cells ODE model', 'Cells Cellular model'], loc=2)
+plt.legend(custom_lines, ['Cells ODE model', 'Cells Cellular model'], loc=1)
 
 plt.subplot(1, 2, 2)
 plt.plot(f['time'], f['AV'], '--', linewidth=2.0, color='black')
