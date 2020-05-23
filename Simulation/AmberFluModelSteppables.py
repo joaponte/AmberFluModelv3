@@ -1,10 +1,12 @@
 from cc3d.core.PySteppables import *
 import numpy as np
+import os
 
 plot_StandAlone = False
 plot_CellModel = True
 overlay_AmbersModel = True
 plot_Residuals = False
+Data_writeout = True
 
 ## How to determine V
 # -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
@@ -67,9 +69,9 @@ class AmberFluModelSteppable(SteppableBasePy):
                                                      y_axis_title='Variables', x_scale_type='linear',
                                                      y_scale_type='linear',
                                                      grid=False, config_options={'legend': True})
-            self.plot_win.add_plot("T", style='Lines', color='red', size=5)
-            self.plot_win.add_plot("I1", style='Lines', color='orange', size=5)
-            self.plot_win.add_plot("I2", style='Lines', color='green', size=5)
+            self.plot_win.add_plot("T", style='Lines', color='blue', size=5)
+            self.plot_win.add_plot("I1", style='Lines', color='yellow', size=5)
+            self.plot_win.add_plot("I2", style='Lines', color='red', size=5)
             self.plot_win.add_plot("D", style='Lines', color='purple', size=5)
 
             self.plot_win2 = self.add_new_plot_window(title='Amber Smith Model Virus',
@@ -109,15 +111,15 @@ class CellularModelSteppable(SteppableBasePy):
                                                       y_axis_title='Variables', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
-            self.plot_win3.add_plot("U", style='Lines', color='red', size=5)
-            self.plot_win3.add_plot("I1", style='Lines', color='orange', size=5)
-            self.plot_win3.add_plot("I2", style='Lines', color='green', size=5)
+            self.plot_win3.add_plot("U", style='Lines', color='blue', size=5)
+            self.plot_win3.add_plot("I1", style='Lines', color='yellow', size=5)
+            self.plot_win3.add_plot("I2", style='Lines', color='red', size=5)
             self.plot_win3.add_plot("D", style='Lines', color='purple', size=5)
 
             if overlay_AmbersModel:
-                self.plot_win3.add_plot("AU", style='Dots', color='red', size=5)
-                self.plot_win3.add_plot("AI1", style='Dots', color='orange', size=5)
-                self.plot_win3.add_plot("AI2", style='Dots', color='green', size=5)
+                self.plot_win3.add_plot("AU", style='Dots', color='blue', size=5)
+                self.plot_win3.add_plot("AI1", style='Dots', color='yellow', size=5)
+                self.plot_win3.add_plot("AI2", style='Dots', color='red', size=5)
                 self.plot_win3.add_plot("AD", style='Dots', color='purple', size=5)
 
             self.plot_win4 = self.add_new_plot_window(title='CPM Virus',
@@ -173,15 +175,6 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
 
-        # Determine amount of extracellular virus field
-        self.ExtracellularVirus_Field = 0
-        for cell in self.cell_list:
-            uptake_probability = 0.0000001
-            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-            V = abs(uptake.tot_amount) / uptake_probability
-            self.ExtracellularVirus_Field += V
-            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
-
         # Production of extracellular virus
         secretor = self.get_field_secretor("Virus")
         V = self.ExtracellularVirus
@@ -191,6 +184,15 @@ class CellularModelSteppable(SteppableBasePy):
             release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularVirus += release.tot_amount
         self.ExtracellularVirus -= c * V
+
+        # Measure amount of extracellular virus field
+        self.ExtracellularVirus_Field = 0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.ExtracellularVirus_Field += V
+            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
         if plot_CellModel:
             self.plot_win3.add_data_point("U", mcs * days_to_mcs,
@@ -237,9 +239,9 @@ class StatisticsSteppable(SteppableBasePy):
                                                       y_axis_title='Variables', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
-            self.plot_win5.add_plot("dU", style='Lines', color='red', size=5)
-            self.plot_win5.add_plot("dI1", style='Lines', color='orange', size=5)
-            self.plot_win5.add_plot("dI2", style='Lines', color='green', size=5)
+            self.plot_win5.add_plot("dU", style='Lines', color='blue', size=5)
+            self.plot_win5.add_plot("dI1", style='Lines', color='yellow', size=5)
+            self.plot_win5.add_plot("dI2", style='Lines', color='red', size=5)
             self.plot_win5.add_plot("dD", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
@@ -270,6 +272,54 @@ class StatisticsSteppable(SteppableBasePy):
             self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
             self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
             self.plot_win5.add_data_point("dD", mcs * days_to_mcs, dD)
+
+class Data_OutputSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if Data_writeout:
+            folder_path = '/Users/Josua/Downloads/AmberFluModelv3/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+
+            file_name = 'AmberFluModel.txt'
+            self.output = open(folder_path + file_name, 'w')
+            self.output.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1','I2','D','V'))
+            self.output.flush()
+        else:
+            pass
+
+    def step(self, mcs):
+        if Data_writeout:
+            # Record variables from ODE model
+            AT = self.sbml.ambersmithsimple['T']
+            AI1 = self.sbml.ambersmithsimple['I1']
+            AI2 = self.sbml.ambersmithsimple['I2']
+            AD = self.sbml.ambersmithsimple['D']
+            AV = self.sbml.ambersmithsimple['V']
+
+            #Record variables from Cellularized Model
+            d = mcs * days_to_mcs
+            U =  len(self.cell_list_by_type(self.U))
+            I1 = len(self.cell_list_by_type(self.I1))
+            I2 = len(self.cell_list_by_type(self.I2))
+            D = len(self.cell_list_by_type(self.DEAD))
+
+            self.Virus_Field = 0
+            secretor = self.get_field_secretor("Virus")
+            for cell in self.cell_list:
+                uptake_probability = 0.0000001
+                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                V = abs(uptake.tot_amount) / uptake_probability
+                self.Virus_Field += V
+                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (d,AT, AI1, AI2, AD, AV, U, I1,I2,D,self.Virus_Field))
+            self.output.flush()
+
+    def finish(self):
+        self.output.close()
 
 #         # Plot lagged differences between cell populations
 #         # Start when both populations are infected
