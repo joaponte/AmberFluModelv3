@@ -259,19 +259,20 @@ class StatisticsSteppable(SteppableBasePy):
         # print("ODE Infection = ", self.Ambersmodel_infection_time * days_to_mcs)
 
         dU = (len(self.cell_list_by_type(self.U)) / self.initial_uninfected) - (
-                    self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
+                self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
         dI1 = (len(self.cell_list_by_type(self.I1)) / self.initial_uninfected) - (
-                    self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
+                self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
         dI2 = (len(self.cell_list_by_type(self.I2)) / self.initial_uninfected) - (
-                    self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
+                self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
         dD = (len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected) - (
-                    self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
+                self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
 
         if plot_Residuals:
             self.plot_win5.add_data_point("dU", mcs * days_to_mcs, dU)
             self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
             self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
             self.plot_win5.add_data_point("dD", mcs * days_to_mcs, dD)
+
 
 class Data_OutputSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -285,7 +286,8 @@ class Data_OutputSteppable(SteppableBasePy):
 
             file_name = 'AmberFluModel.txt'
             self.output = open(folder_path + file_name, 'w')
-            self.output.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1','I2','D','V'))
+            self.output.write(
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
             self.output.flush()
         else:
             pass
@@ -299,9 +301,9 @@ class Data_OutputSteppable(SteppableBasePy):
             AD = self.sbml.ambersmithsimple['D']
             AV = self.sbml.ambersmithsimple['V']
 
-            #Record variables from Cellularized Model
+            # Record variables from Cellularized Model
             d = mcs * days_to_mcs
-            U =  len(self.cell_list_by_type(self.U))
+            U = len(self.cell_list_by_type(self.U))
             I1 = len(self.cell_list_by_type(self.I1))
             I2 = len(self.cell_list_by_type(self.I2))
             D = len(self.cell_list_by_type(self.DEAD))
@@ -315,7 +317,8 @@ class Data_OutputSteppable(SteppableBasePy):
                 self.Virus_Field += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
-            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (d,AT, AI1, AI2, AD, AV, U, I1,I2,D,self.Virus_Field))
+            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+            d, AT, AI1, AI2, AD, AV, U, I1, I2, D, self.Virus_Field))
             self.output.flush()
 
     def finish(self):
