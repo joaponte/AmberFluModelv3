@@ -27,6 +27,9 @@
       <CellType Freeze="" TypeId="2" TypeName="I1"/>
       <CellType Freeze="" TypeId="3" TypeName="I2"/>
       <CellType Freeze="" TypeId="4" TypeName="Dead"/>
+      <CellType Freeze="" TypeId="5" TypeName="I1B"/>
+      <CellType Freeze="" TypeId="6" TypeName="I2B"/>
+      <CellType Freeze="" TypeId="7" TypeName="DeadB"/>
 
    </Plugin>
    
@@ -35,7 +38,9 @@
       <VolumeEnergyParameters CellType="I1" LambdaVolume="2.0" TargetVolume="50"/>
       <VolumeEnergyParameters CellType="I2" LambdaVolume="2.0" TargetVolume="50"/>
       <VolumeEnergyParameters CellType="Dead" LambdaVolume="2.0" TargetVolume="50"/>
-
+      <VolumeEnergyParameters CellType="I1B" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="I2B" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="DeadB" LambdaVolume="2.0" TargetVolume="50"/>
    </Plugin>
    
    <Plugin Name="CenterOfMass">
@@ -50,16 +55,37 @@
    <Energy Type1="Medium" Type2="I1">10.0</Energy>
    <Energy Type1="Medium" Type2="I2">10.0</Energy>
    <Energy Type1="Medium" Type2="Dead">10.0</Energy>
+   <Energy Type1="Medium" Type2="I1B">10.0</Energy>
+   <Energy Type1="Medium" Type2="I2B">10.0</Energy>
+   <Energy Type1="Medium" Type2="DeadB">10.0</Energy>
    <Energy Type1="U" Type2="U">10.0</Energy>
    <Energy Type1="U" Type2="I1">10.0</Energy>
    <Energy Type1="U" Type2="I2">10.0</Energy>
    <Energy Type1="U" Type2="Dead">10.0</Energy>
+   <Energy Type1="U" Type2="I1B">10.0</Energy>
+   <Energy Type1="U" Type2="I2B">10.0</Energy>
+   <Energy Type1="U" Type2="DeadB">10.0</Energy>
    <Energy Type1="I1" Type2="I1">10.0</Energy>
    <Energy Type1="I1" Type2="I2">10.0</Energy>
    <Energy Type1="I1" Type2="Dead">10.0</Energy>
+   <Energy Type1="I1" Type2="I1B">10.0</Energy>
+   <Energy Type1="I1" Type2="I2B">10.0</Energy>
+   <Energy Type1="I1" Type2="DeadB">10.0</Energy>
    <Energy Type1="I2" Type2="I2">10.0</Energy>
    <Energy Type1="I2" Type2="Dead">10.0</Energy>
+   <Energy Type1="I2" Type2="I1B">10.0</Energy>
+   <Energy Type1="I2" Type2="I2B">10.0</Energy>
+   <Energy Type1="I2" Type2="DeadB">10.0</Energy>
    <Energy Type1="Dead" Type2="Dead">10.0</Energy>
+   <Energy Type1="Dead" Type2="I1B">10.0</Energy>
+   <Energy Type1="Dead" Type2="I2B">10.0</Energy>
+   <Energy Type1="Dead" Type2="DeadB">10.0</Energy>
+   <Energy Type1="I1B" Type2="I1B">10.0</Energy>
+   <Energy Type1="I1B" Type2="I2B">10.0</Energy>
+   <Energy Type1="I1B" Type2="DeadB">10.0</Energy>
+   <Energy Type1="I2B" Type2="I2B">10.0</Energy>
+   <Energy Type1="I2B" Type2="DeadB">10.0</Energy>
+   <Energy Type1="DeadB" Type2="DeadB">10.0</Energy>
    <NeighborOrder>3</NeighborOrder>
 </Plugin>
 
@@ -68,6 +94,22 @@
 
    <Steppable Type="DiffusionSolverFE">
       <DiffusionField Name="Virus">
+         <DiffusionData>
+            <FieldName>Virus</FieldName>
+            <GlobalDiffusionConstant id = "virus_dc">1.0</GlobalDiffusionConstant>
+            <GlobalDecayConstant id = "virus_decay">0.0</GlobalDecayConstant>
+            <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>
+         </DiffusionData>
+         <BoundaryConditions>
+            <Plane Axis="X">
+               <Periodic/>
+            </Plane>
+            <Plane Axis="Y">
+               <Periodic/>
+            </Plane>
+         </BoundaryConditions>
+      </DiffusionField>
+            <DiffusionField Name="VirusB">
          <DiffusionData>
             <FieldName>Virus</FieldName>
             <GlobalDiffusionConstant id = "virus_dc">1.0</GlobalDiffusionConstant>
