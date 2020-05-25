@@ -7,9 +7,9 @@ plot_ODEStandAlone = False
 #  1 plot virus A
 #  2 plot virus B
 #  3 plot both viruses
-plot_ConinfectionODEtandAlone = 3
-overlay_AmbersModelandCoinfection= True
-plot_CellModel = False
+plot_ConinfectionODEtandAlone = False
+overlay_AmbersModelandCoinfection = False
+plot_CellModel = True
 overlay_AmbersModel = False
 plot_Residuals = False
 Data_writeout = False
@@ -148,10 +148,10 @@ class AmberFluModelSteppable(SteppableBasePy):
                 self.plot_win6.add_plot("DA", style='Lines', color='purple', size=5)
                 self.plot_win7.add_plot("VA", style='Lines', color='blue', size=5)
             if plot_ConinfectionODEtandAlone == 2 or plot_ConinfectionODEtandAlone == 3:
-                self.plot_win6.add_plot("I1B", style='Lines', color='yellow', size=5)
-                self.plot_win6.add_plot("I2B", style='Lines', color='red', size=5)
-                self.plot_win6.add_plot("DB", style='Lines', color='purple', size=5)
-                self.plot_win7.add_plot("VB", style='Lines', color='blue', size=5)
+                self.plot_win6.add_plot("I1B", style='Lines', color='green', size=5)
+                self.plot_win6.add_plot("I2B", style='Lines', color='magenta', size=5)
+                self.plot_win6.add_plot("DB", style='Lines', color='brown', size=5)
+                self.plot_win7.add_plot("VB", style='Lines', color='cyan', size=5)
             if overlay_AmbersModelandCoinfection:
                 self.plot_win6.add_plot("TAmber", style='Dots', color='blue', size=5)
                 self.plot_win6.add_plot("I1Amber", style='Dots', color='yellow', size=5)
@@ -175,6 +175,7 @@ class AmberFluModelSteppable(SteppableBasePy):
         if plot_ConinfectionODEtandAlone:
             self.plot_win6.add_data_point("T", mcs * days_to_mcs,
                                          self.sbml.coinfection['T'] / self.sbml.coinfection['T0'])
+
             if plot_ConinfectionODEtandAlone == 1 or plot_ConinfectionODEtandAlone == 3:
                 self.plot_win6.add_data_point("I1A", mcs * days_to_mcs,
                                              self.sbml.coinfection['I1A'] / self.sbml.coinfection['T0'])
@@ -183,6 +184,7 @@ class AmberFluModelSteppable(SteppableBasePy):
                 self.plot_win6.add_data_point("DA", mcs * days_to_mcs,
                                              self.sbml.coinfection['DA'] / self.sbml.coinfection['T0'])
                 self.plot_win7.add_data_point("VA", mcs * days_to_mcs, np.log10(self.sbml.coinfection['VA']))
+
             if plot_ConinfectionODEtandAlone == 2 or plot_ConinfectionODEtandAlone == 3:
                 self.plot_win6.add_data_point("I1B", mcs * days_to_mcs,
                                              self.sbml.coinfection['I1B'] / self.sbml.coinfection['T0'])
@@ -191,6 +193,7 @@ class AmberFluModelSteppable(SteppableBasePy):
                 self.plot_win6.add_data_point("DB", mcs * days_to_mcs,
                                              self.sbml.coinfection['DB'] / self.sbml.coinfection['T0'])
                 self.plot_win7.add_data_point("VB", mcs * days_to_mcs, np.log10(self.sbml.coinfection['VB']))
+
             if overlay_AmbersModelandCoinfection:
                 self.plot_win6.add_data_point("TAmber", mcs * days_to_mcs,
                                              self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
@@ -210,8 +213,10 @@ class CellularModelSteppable(SteppableBasePy):
     def start(self):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list_by_type(self.U))
-        self.ExtracellularVirus = self.sbml.ambersmithsimple['V']
+        self.ExtracellularVirus = self.sbml.coinfection['VA']
         self.get_xml_element('virus_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
+        self.ExtracellularVirusB = self.sbml.coinfection['VB']
+        self.get_xml_element('virusB_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
 
         if plot_CellModel:
             self.plot_win3 = self.add_new_plot_window(title='CPM Cells',
@@ -220,9 +225,12 @@ class CellularModelSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
             self.plot_win3.add_plot("U", style='Lines', color='blue', size=5)
-            self.plot_win3.add_plot("I1", style='Lines', color='yellow', size=5)
-            self.plot_win3.add_plot("I2", style='Lines', color='red', size=5)
-            self.plot_win3.add_plot("D", style='Lines', color='purple', size=5)
+            self.plot_win3.add_plot("I1A", style='Lines', color='yellow', size=5)
+            self.plot_win3.add_plot("I2A", style='Lines', color='red', size=5)
+            self.plot_win3.add_plot("DA", style='Lines', color='purple', size=5)
+            self.plot_win3.add_plot("I1B", style='Lines', color='green', size=5)
+            self.plot_win3.add_plot("I2B", style='Lines', color='magenta', size=5)
+            self.plot_win3.add_plot("DB", style='Lines', color='brown', size=5)
 
             if overlay_AmbersModel:
                 self.plot_win3.add_plot("AU", style='Dots', color='blue', size=5)
@@ -235,7 +243,8 @@ class CellularModelSteppable(SteppableBasePy):
                                                       y_axis_title='Variables', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
-            self.plot_win4.add_plot("V", style='Lines', color='blue', size=5)
+            self.plot_win4.add_plot("VA", style='Lines', color='blue', size=5)
+            self.plot_win4.add_plot("VB", style='Lines', color='cyan', size=5)
 
             if overlay_AmbersModel:
                 self.plot_win4.add_plot("AV", style='Dots', color='blue', size=5)
@@ -243,57 +252,98 @@ class CellularModelSteppable(SteppableBasePy):
     def step(self, mcs):
         # Transition rule from U to I1
         secretor = self.get_field_secretor("Virus")
+        secretorB = self.get_field_secretor("VirusB")
         for cell in self.cell_list_by_type(self.U):
             # Determine V from scalar virus from the ODE
             if how_to_determine_V == -1:
-                b = self.sbml.ambersmithsimple['beta'] * self.sbml.ambersmithsimple['T0'] * days_to_mcs
-                V = self.sbml.ambersmithsimple['V'] / self.sbml.ambersmithsimple['T0']
+                b = self.sbml.coinfection['beta'] * self.sbml.coinfection['T0'] * days_to_mcs
+                VA = self.sbml.coinfection['VA'] / self.sbml.coinfection['T0']
+                VB = self.sbml.coinfection['VB'] / self.sbml.coinfection['T0']
 
             # Determine V from scalar virus from the cellular model
             if how_to_determine_V == 0:
-                b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
-                V = self.ExtracellularVirus / self.initial_uninfected
+                b = self.sbml.coinfection['beta'] * self.initial_uninfected * days_to_mcs
+                VA = self.ExtracellularVirus / self.initial_uninfected
+                VB = self.ExtracellularVirusB / self.initial_uninfected
 
             # Determine V from the virus field
             if how_to_determine_V == 1:
-                b = self.sbml.ambersmithsimple['beta'] * self.initial_uninfected * days_to_mcs
+                b = self.sbml.coinfection['beta'] * self.initial_uninfected * days_to_mcs
                 uptake_probability = 0.0000001
+
                 uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                V = abs(uptake.tot_amount) / uptake_probability
+                VA = abs(uptake.tot_amount) / uptake_probability
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
+                uptakeB = secretorB.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                VB = abs(uptakeB.tot_amount) / uptake_probability
+                secretorB.secreteInsideCellTotalCount(cell, abs(uptakeB.tot_amount) / cell.volume)
+
             # Calculate the probability of infection of individual cells based on the amount of virus PER cell
-            p_UtoI1 = b * V
-            if np.random.random() < p_UtoI1:
+            # Transition rule from T to I2
+            p_UtoI1A = b * VA
+            if np.random.random() < p_UtoI1A:
                 cell.type = self.I1
 
+            # Transition rule from T to I2B
+            p_UtoI1A = b * VB
+            if np.random.random() < p_UtoI1A:
+                cell.type = self.I1B
+
         # Transition rule from I1 to I2
-        k = self.sbml.ambersmithsimple['k'] * days_to_mcs
+        k = self.sbml.coinfection['k'] * days_to_mcs
         p_T1oI2 = k
         for cell in self.cell_list_by_type(self.I1):
             if np.random.random() < p_T1oI2:
                 cell.type = self.I2
 
+        # Transition rule from I1B to I2B
+        k = self.sbml.coinfection['k'] * days_to_mcs
+        p_T1BoI2B = k
+        for cell in self.cell_list_by_type(self.I1B):
+            if np.random.random() < p_T1BoI2B:
+                cell.type = self.I2B
+
         # Transition rule from I2 to D
-        K_delta = self.sbml.ambersmithsimple['K_delta'] / self.sbml.ambersmithsimple['T0'] * self.initial_uninfected
-        delta_d = self.sbml.ambersmithsimple['delta_d'] / self.sbml.ambersmithsimple['T0'] * self.initial_uninfected
+        K_delta = self.sbml.coinfection['K_delta'] / self.sbml.coinfection['T0'] * self.initial_uninfected
+        delta_d = self.sbml.coinfection['delta_d'] / self.sbml.coinfection['T0'] * self.initial_uninfected
         I2 = len(self.cell_list_by_type(self.I2))
         p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
 
-        # Production of extracellular virus
+        # Transition rule from I2B to DB
+        K_delta = self.sbml.coinfection['K_delta'] / self.sbml.coinfection['T0'] * self.initial_uninfected
+        delta_d = self.sbml.coinfection['delta_d'] / self.sbml.coinfection['T0'] * self.initial_uninfected
+        I2B = len(self.cell_list_by_type(self.I2B))
+        p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
+        for cell in self.cell_list_by_type(self.I2B):
+            if np.random.random() < p_T2BtoDB:
+                cell.type = self.DEADB
+
+        # Production of extracellular virus A
         secretor = self.get_field_secretor("Virus")
         V = self.ExtracellularVirus
-        p = self.sbml.ambersmithsimple['p'] / self.initial_uninfected * self.sbml.ambersmithsimple['T0'] * days_to_mcs
-        c = self.sbml.ambersmithsimple['c'] * days_to_mcs
+        p = self.sbml.coinfection['p'] / self.initial_uninfected * self.sbml.coinfection['T0'] * days_to_mcs
+        c = self.sbml.coinfection['c'] * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularVirus += release.tot_amount
         self.ExtracellularVirus -= c * V
 
+        # Production of extracellular virus A
+        secretor = self.get_field_secretor("VirusB")
+        VB = self.ExtracellularVirusB
+        p = self.sbml.coinfection['p'] / self.initial_uninfected * self.sbml.coinfection['T0'] * days_to_mcs
+        c = self.sbml.coinfection['c'] * days_to_mcs
+        for cell in self.cell_list_by_type(self.I2B):
+            release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
+            self.ExtracellularVirusB += release.tot_amount
+        self.ExtracellularVirusB -= c * VB
+
         # Measure amount of extracellular virus field
+        secretor = self.get_field_secretor("Virus")
         self.ExtracellularVirus_Field = 0
         for cell in self.cell_list:
             uptake_probability = 0.0000001
@@ -302,19 +352,37 @@ class CellularModelSteppable(SteppableBasePy):
             self.ExtracellularVirus_Field += V
             secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
+        # Measure amount of extracellular virus field
+        secretor = self.get_field_secretor("VirusB")
+        self.ExtracellularVirus_FieldB = 0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.ExtracellularVirus_FieldB += V
+            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
         if plot_CellModel:
             self.plot_win3.add_data_point("U", mcs * days_to_mcs,
                                           len(self.cell_list_by_type(self.U)) / self.initial_uninfected)
-            self.plot_win3.add_data_point("I1", mcs * days_to_mcs,
+            self.plot_win3.add_data_point("I1A", mcs * days_to_mcs,
                                           len(self.cell_list_by_type(self.I1)) / self.initial_uninfected)
-            self.plot_win3.add_data_point("I2", mcs * days_to_mcs,
+            self.plot_win3.add_data_point("I2A", mcs * days_to_mcs,
                                           len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
-            self.plot_win3.add_data_point("D", mcs * days_to_mcs,
+            self.plot_win3.add_data_point("DA", mcs * days_to_mcs,
                                           len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
+            self.plot_win3.add_data_point("I1B", mcs * days_to_mcs,
+                                          len(self.cell_list_by_type(self.I1B)) / self.initial_uninfected)
+            self.plot_win3.add_data_point("I2B", mcs * days_to_mcs,
+                                          len(self.cell_list_by_type(self.I2B)) / self.initial_uninfected)
+            self.plot_win3.add_data_point("DB", mcs * days_to_mcs,
+                                          len(self.cell_list_by_type(self.DEADB)) / self.initial_uninfected)
             if how_to_determine_V == 1:
-                self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus_Field))
+                self.plot_win4.add_data_point("VA", mcs * days_to_mcs, np.log10(self.ExtracellularVirus_Field))
+                self.plot_win4.add_data_point("VB", mcs * days_to_mcs, np.log10(self.ExtracellularVirus_FieldB))
             else:
-                self.plot_win4.add_data_point("V", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
+                self.plot_win4.add_data_point("VA", mcs * days_to_mcs, np.log10(self.ExtracellularVirus))
+                self.plot_win4.add_data_point("VB", mcs * days_to_mcs, np.log10(self.ExtracellularVirusB))
 
             if overlay_AmbersModel:
                 self.plot_win3.add_data_point("AU", mcs * days_to_mcs,
@@ -326,7 +394,6 @@ class CellularModelSteppable(SteppableBasePy):
                 self.plot_win3.add_data_point("AD", mcs * days_to_mcs,
                                               self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win4.add_data_point("AV", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
-
 
 class StatisticsSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
