@@ -2,11 +2,17 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-plot_StandAlone = False
-plot_CellModel = True
-overlay_AmbersModel = True
+plot_ODEStandAlone = True
+## Plot Coinfection ODE
+#  1 plot virus A
+#  2 plot virus B
+#  3 plot both viruses
+plot_ConinfectionODEtandAlone = True
+overlay_AmbersModelandCoinfection= False
+plot_CellModel = False
+overlay_AmbersModel = False
 plot_Residuals = False
-Data_writeout = True
+Data_writeout = False
 
 ## How to determine V
 # -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
@@ -45,6 +51,35 @@ ModelString = '''
         I1 = 75.0 ;                                             // Initial Number of Infected Cells
 end'''
 
+Coinfection_ModelString = '''
+        model coinfection()
+         //State Variables and Transitions for Virus A
+        V1: -> T   ; -beta * VA * T ;                               // Susceptible Cells
+        V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells
+        V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2A) ;   // Late Infected Cells
+        V4: -> VA  ;  p * I2A - c * VA;                             // Extracellular Virus A
+        V5: -> DA  ;  delta_d * I2A / (K_delta + I2A) ;             // Dead Cells
+
+         //State Variables and Transitions for Virus B
+        V6: -> T   ; -beta * VB * T ;                               // Susceptible Cells
+        V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells
+        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells
+        V9: -> VB  ;  p * I2B - c * VB;                             // Extracellular Virus B
+        V10: -> DB  ;  delta_d * I2B / (K_delta + I2B) ;             // Dead Cells
+
+        //Parameters
+        beta = 2.4* 10^(-4) ;                                       // Virus Infective
+        p = 1.6 ;                                                   // Virus Production
+        c = 13.0 ;                                                  // Virus Clearance
+        k = 4.0 ;                                                   // Eclipse phase
+        delta_d = 1.6 * 10^6 ;                                      // Infected Cell Clearance
+        K_delta = 4.5 * 10^5 ;                                      // Half Saturation Constant   
+
+        // Initial Conditions ;
+        T0 = 1.0*10^7;
+        T = T0  ;                                                   // Initial Number of Uninfected Cells
+        I1 = 75.0 ;                                                 // Initial Number of Infected Cells
+end'''
 
 class AmberFluModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -54,7 +89,7 @@ class AmberFluModelSteppable(SteppableBasePy):
         # Uptading max simulation steps using scaling factor to simulate 10 days
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
 
-        # Adding free floating antimony model
+        # Adding free floating single antimony model
         self.add_free_floating_antimony(model_string=ModelString, model_name='ambersmithsimple',
                                         step_size=days_to_mcs)
         # Changing initial values according to discussions with Amber Smith
@@ -63,8 +98,18 @@ class AmberFluModelSteppable(SteppableBasePy):
         state['V'] = 75.0
         self.set_sbml_state(model_name='ambersmithsimple', state=state)
 
+        # Adding free floating coninfection antimony model
+        self.add_free_floating_antimony(model_string=Coinfection_ModelString, model_name='coinfection',
+                                        step_size=days_to_mcs)
+        # Changing initial values according to discussions with Amber Smith
+        state = {}
+        state['I1'] = 0.0
+        state['VA'] = 75.0 / 2.0
+        state['VB'] = 75.0 / 2.0
+        self.set_sbml_state(model_name='coinfection', state=state)
+
         # Initialize Graphic Window for Amber Smith ODE model
-        if plot_StandAlone:
+        if plot_ODEStandAlone:
             self.plot_win = self.add_new_plot_window(title='Amber Smith Model Cells',
                                                      x_axis_title='Days',
                                                      y_axis_title='Variables', x_scale_type='linear',
@@ -82,9 +127,32 @@ class AmberFluModelSteppable(SteppableBasePy):
                                                       grid=False, config_options={'legend': True})
             self.plot_win2.add_plot("V", style='Lines', color='blue', size=5)
 
+            # Initialize Graphic Window for Coninfection ODE model
+        if plot_ConinfectionODEtandAlone:
+            self.plot_win6 = self.add_new_plot_window(title='Coinfection ODE Model Cells',
+                                                     x_axis_title='Days',
+                                                     y_axis_title='Variables', x_scale_type='linear',
+                                                     y_scale_type='linear',
+                                                     grid=False, config_options={'legend': True})
+            self.plot_win6.add_plot("T", style='Lines', color='blue', size=5)
+            self.plot_win6.add_plot("I1A", style='Lines', color='yellow', size=5)
+            self.plot_win6.add_plot("I2A", style='Lines', color='red', size=5)
+            self.plot_win6.add_plot("DA", style='Lines', color='purple', size=5)
+            self.plot_win6.add_plot("I1B", style='Dots', color='yellow', size=5)
+            self.plot_win6.add_plot("I2B", style='Dots', color='red', size=5)
+            self.plot_win6.add_plot("DB", style='Dots', color='purple', size=5)
+
+            self.plot_win7 = self.add_new_plot_window(title='Coinfection ODE Model Virus',
+                                                      x_axis_title='Days',
+                                                      y_axis_title='Virus', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False, config_options={'legend': True})
+            self.plot_win7.add_plot("VA", style='Lines', color='blue', size=5)
+            self.plot_win7.add_plot("VB", style='Dots', color='blue', size=5)
+
     def step(self, mcs):
         self.timestep_sbml()
-        if plot_StandAlone:
+        if plot_ODEStandAlone:
             self.plot_win.add_data_point("T", mcs * days_to_mcs,
                                          self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
             self.plot_win.add_data_point("I1", mcs * days_to_mcs,
@@ -95,6 +163,23 @@ class AmberFluModelSteppable(SteppableBasePy):
                                          self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
             self.plot_win2.add_data_point("V", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
+        if plot_ConinfectionODEtandAlone:
+            self.plot_win6.add_data_point("T", mcs * days_to_mcs,
+                                         self.sbml.coinfection['T'] / self.sbml.coinfection['T0'])
+            self.plot_win6.add_data_point("I1A", mcs * days_to_mcs,
+                                         self.sbml.coinfection['I1A'] / self.sbml.coinfection['T0'])
+            self.plot_win6.add_data_point("I2A", mcs * days_to_mcs,
+                                         self.sbml.coinfection['I2A'] / self.sbml.coinfection['T0'])
+            self.plot_win6.add_data_point("DA", mcs * days_to_mcs,
+                                         self.sbml.coinfection['DA'] / self.sbml.coinfection['T0'])
+            self.plot_win7.add_data_point("VA", mcs * days_to_mcs, np.log10(self.sbml.coinfection['VA']))
+            self.plot_win6.add_data_point("I1B", mcs * days_to_mcs,
+                                         self.sbml.coinfection['I1B'] / self.sbml.coinfection['T0'])
+            self.plot_win6.add_data_point("I2B", mcs * days_to_mcs,
+                                         self.sbml.coinfection['I2B'] / self.sbml.coinfection['T0'])
+            self.plot_win6.add_data_point("DB", mcs * days_to_mcs,
+                                         self.sbml.coinfection['DB'] / self.sbml.coinfection['T0'])
+            self.plot_win7.add_data_point("VB", mcs * days_to_mcs, np.log10(self.sbml.coinfection['VB']))
 
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
