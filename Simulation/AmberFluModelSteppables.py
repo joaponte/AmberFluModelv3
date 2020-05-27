@@ -170,5 +170,5 @@ class Data_OutputSteppable(SteppableBasePy):
             self.output2.flush()
 
     def finish(self):
-        if Data_writeout:
+        if Data_writeout_CellularModel:
             self.output.close()
