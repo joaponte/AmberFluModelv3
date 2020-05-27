@@ -10,10 +10,4 @@ CompuCellSetup.register_steppable(steppable=CellularModelSteppable(frequency=1))
 from AmberFluModelSteppables import Data_OutputSteppable
 CompuCellSetup.register_steppable(steppable=Data_OutputSteppable(frequency=1))
 
-from AmberFluModelSteppables import Plot_ODEsSteppable
-CompuCellSetup.register_steppable(steppable=Plot_ODEsSteppable(frequency=1))
-
-from AmberFluModelSteppables import Plot_CellularModelSteppable
-CompuCellSetup.register_steppable(steppable=Plot_CellularModelSteppable(frequency=1))
-
 CompuCellSetup.run()
