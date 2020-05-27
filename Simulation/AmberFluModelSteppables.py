@@ -33,6 +33,9 @@ class CellularModelSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        # Uptading max simulation steps using scaling factor to simulate 10 days
+        self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
+
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list_by_type(self.U))
 
