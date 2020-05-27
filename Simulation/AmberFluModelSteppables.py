@@ -216,6 +216,57 @@ class CellularModelSteppable(SteppableBasePy):
             self.ExtracellularVirusB += release.tot_amount
         self.ExtracellularVirusB -= c * VB
 
+class Data_OutputSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if Data_writeout:
+            folder_path = '/Users/Josua/Downloads/AmberFluModelv3/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+
+            file_name = 'AmberFluModel.txt'
+            self.output = open(folder_path + file_name, 'w')
+            self.output.write(
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time','AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
+            self.output.flush()
+        else:
+            pass
+
+    def step(self, mcs):
+        if Data_writeout:
+            # Record variables from ODE model
+            AT = self.sbml.ambersmithsimple['T']
+            AI1 = self.sbml.ambersmithsimple['I1']
+            AI2 = self.sbml.ambersmithsimple['I2']
+            AD = self.sbml.ambersmithsimple['D']
+            AV = self.sbml.ambersmithsimple['V']
+
+            # Record variables from Cellularized Model
+            d = mcs * days_to_mcs
+            U = len(self.cell_list_by_type(self.U))
+            I1 = len(self.cell_list_by_type(self.I1))
+            I2 = len(self.cell_list_by_type(self.I2))
+            D = len(self.cell_list_by_type(self.DEAD))
+
+            self.Virus_Field = 0
+            secretor = self.get_field_secretor("Virus")
+            for cell in self.cell_list:
+                uptake_probability = 0.0000001
+                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                V = abs(uptake.tot_amount) / uptake_probability
+                self.Virus_Field += V
+                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+            d, AT, AI1, AI2, AD, AV, U, I1, I2, D, self.Virus_Field))
+            self.output.flush()
+
+    def finish(self):
+        if Data_writeout:
+            self.output.close()
+
 class Plot_ODEsSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -325,6 +376,7 @@ class Plot_CellularModelSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        self.initial_uninfected = len(self.cell_list_by_type(self.U))
         self.Plot_ExtracellularVirus = self.sbml.coinfection['VA']
         self.Plot_ExtracellularVirusB = self.sbml.coinfection['VB']
 
@@ -366,12 +418,12 @@ class Plot_CellularModelSteppable(SteppableBasePy):
             c = self.sbml.coinfection['c'] * days_to_mcs
 
             VA = self.Plot_ExtracellularVirus
-            VA_production = p * self.cell_list_by_type(self.I2)
+            VA_production = p * len(self.cell_list_by_type(self.I2))
             VA_decay = c * VA
             self.Plot_ExtracellularVirus += VA_production - VA_decay
 
             VB = self.Plot_ExtracellularVirusB
-            VB_production = p * self.cell_list_by_type(self.I2B)
+            VB_production = p * len(self.cell_list_by_type(self.I2B))
             VB_decay = c * VB
             self.Plot_ExtracellularVirusB += VB_production - VB_decay
 
@@ -427,54 +479,3 @@ class Plot_CellularModelSteppable(SteppableBasePy):
                 self.plot_win3.add_data_point("AD", mcs * days_to_mcs,
                                               self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win4.add_data_point("AV", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
-
-class Data_OutputSteppable(SteppableBasePy):
-    def __init__(self, frequency=1):
-        SteppableBasePy.__init__(self, frequency)
-
-    def start(self):
-        if Data_writeout:
-            folder_path = '/Users/Josua/Downloads/AmberFluModelv3/'
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
-
-            file_name = 'AmberFluModel.txt'
-            self.output = open(folder_path + file_name, 'w')
-            self.output.write(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time','AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
-            self.output.flush()
-        else:
-            pass
-
-    def step(self, mcs):
-        if Data_writeout:
-            # Record variables from ODE model
-            AT = self.sbml.ambersmithsimple['T']
-            AI1 = self.sbml.ambersmithsimple['I1']
-            AI2 = self.sbml.ambersmithsimple['I2']
-            AD = self.sbml.ambersmithsimple['D']
-            AV = self.sbml.ambersmithsimple['V']
-
-            # Record variables from Cellularized Model
-            d = mcs * days_to_mcs
-            U = len(self.cell_list_by_type(self.U))
-            I1 = len(self.cell_list_by_type(self.I1))
-            I2 = len(self.cell_list_by_type(self.I2))
-            D = len(self.cell_list_by_type(self.DEAD))
-
-            self.Virus_Field = 0
-            secretor = self.get_field_secretor("Virus")
-            for cell in self.cell_list:
-                uptake_probability = 0.0000001
-                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                V = abs(uptake.tot_amount) / uptake_probability
-                self.Virus_Field += V
-                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
-
-            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
-            d, AT, AI1, AI2, AD, AV, U, I1, I2, D, self.Virus_Field))
-            self.output.flush()
-
-    def finish(self):
-        if Data_writeout:
-            self.output.close()
