@@ -3,7 +3,8 @@ import numpy as np
 import os
 import Parameters
 
-Data_writeout = True
+Data_writeout_ODEs = False
+Data_writeout_CellularModel = True
 
 ## How to determine V
 # -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
@@ -15,7 +16,9 @@ min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0 #10 in the original model
 
-B = Parameters.B
+production_multiplier = Parameters.P
+diffusion_multiplier = Parameters.D
+replicate = Parameters.R
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -88,18 +91,6 @@ class CellularModelSteppable(SteppableBasePy):
         secretor = self.get_field_secretor("Virus")
         secretorB = self.get_field_secretor("VirusB")
         for cell in self.cell_list_by_type(self.U):
-            # Determine V from scalar virus from the ODE
-            if how_to_determine_V == -1:
-                b = self.sbml.coinfection['beta'] * self.sbml.coinfection['T0'] * days_to_mcs
-                VA = self.sbml.coinfection['VA'] / self.sbml.coinfection['T0']
-                VB = self.sbml.coinfection['VB'] / self.sbml.coinfection['T0']
-
-            # Determine V from scalar virus from the cellular model
-            if how_to_determine_V == 0:
-                b = self.sbml.coinfection['beta'] * self.initial_uninfected * days_to_mcs
-                VA = self.ExtracellularVirus / self.initial_uninfected
-                VB = self.ExtracellularVirusB / self.initial_uninfected
-
             # Determine V from the virus field
             if how_to_determine_V == 1:
                 b = self.sbml.coinfection['beta'] * self.initial_uninfected * days_to_mcs
@@ -160,6 +151,7 @@ class CellularModelSteppable(SteppableBasePy):
         secretor = self.get_field_secretor("Virus")
         V = self.ExtracellularVirus
         p = self.sbml.coinfection['p'] / self.initial_uninfected * self.sbml.coinfection['T0'] * days_to_mcs
+        p *= production_multiplier
         c = self.sbml.coinfection['c'] * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
@@ -181,36 +173,20 @@ class Data_OutputSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
-        if Data_writeout:
+        if Data_writeout_CellularModel:
             folder_path = '/Users/Josua/Downloads/AmberFluModelv3/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-            file_name1 = 'ODEModel.txt'
-            self.output1 = open(folder_path + file_name1, 'w')
-            self.output1.write(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time','AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
-            self.output1.flush()
-
-            file_name2 = 'CellularizedModel.txt'
+            file_name2 = 'cellularizedmodel_%.5d_%.5d_%i.txt' % (
+                production_multiplier*100,diffusion_multiplier*100,replicate)
             self.output2 = open(folder_path + file_name2, 'w')
-            self.output2.write(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time','AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
+            self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
+                'Time', 'U', 'AI1', 'AI2', 'AD', 'BI2', 'BI2', 'BD', 'VA', 'VB'))
             self.output2.flush()
 
     def step(self, mcs):
-        if Data_writeout:
-            # Record variables from ODE model
-            T = self.sbml.coinfection['T']
-            AI1A = self.sbml.coinfection['I1A']
-            AI2A = self.sbml.coinfection['I2A']
-            ADA = self.sbml.coinfection['DA']
-            AVA = self.sbml.coinfection['VA']
-            AI1B = self.sbml.coinfection['I1B']
-            AI2B = self.sbml.coinfection['I2B']
-            ADB = self.sbml.coinfection['DB']
-            AVB = self.sbml.coinfection['VB']
-
+        if Data_writeout_CellularModel:
             # Record variables from Cellularized Model
             d = mcs * days_to_mcs
             U = len(self.cell_list_by_type(self.U))
@@ -239,13 +215,9 @@ class Data_OutputSteppable(SteppableBasePy):
                 self.Virus_FieldB += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
-            self.output1.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
-            d, AT, AI1, AI2, AD, AV, U, I1, I2, D, self.Virus_Field))
-            self.output1.flush()
-
-            self.output1.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
-            d, AT, AI1, AI2, AD, AV, U, I1, I2, D, self.Virus_Field))
-            self.output1.flush()
+            self.output2.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+            d, U, I1, I2, DA, I1B, I2B, DB, self.Virus_Field, self.Virus_FieldB))
+            self.output2.flush()
 
     def finish(self):
         if Data_writeout:
