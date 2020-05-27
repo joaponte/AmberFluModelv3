@@ -1,6 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 import os
+import Parameters
 
 Data_writeout = True
 
@@ -13,6 +14,8 @@ how_to_determine_V = 1
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0 #10 in the original model
+
+B = Parameters.B
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
