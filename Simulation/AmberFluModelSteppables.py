@@ -2,7 +2,7 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-plot_StandAlone = False
+plot_StandAlone = True
 plot_CellModel = True
 overlay_AmbersModel = True
 plot_Residuals = False
@@ -18,32 +18,49 @@ min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 4.0 #10 in the original model
 
-'''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
-supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
+model_string = '''
+    //Equations
+    E2: -> IFN ; P*(k11*RIGI*V + k12*V^n/(k13+V^n) + k14*IRF7P) ;
+    E3A: IFN -> IFNe; k21*IFN ;
+    E3B: IFNe -> ; t2*IFNe
+    E4A: -> STATP ; k31*P*IFNe/(k32+k33*IFNe) 
+    E4B: STATP -> ; t3*STATP
+    E5A: -> IRF7 ; P*(k41*STATP + k42*IRF7P)
+    E5B: IRF7 -> ; t4*IRF7
+    E6A: -> IRF7P ;  k51*P*IRF7
+    E7B: IRF7P -> ; t5*IRF7P
+    E7A: P -> ; -k61*P*V
+    E8A: -> V ; k71*P*V/(1+k72*IFNe)
+    E8B: V -> ; k73*V
 
-ModelString = '''        
-        model ambersmithsimple()
-        
-        //State Variables and Transitions
-        V1: -> T  ; -beta * V * T ;                             // Susceptible Cells
-        V2: -> I1 ;  beta * V * T - k * I1 ;                    // Early Infected Cells
-        V3: -> I2 ;  k * I1 - delta_d * I2 / (K_delta + I2) ;   // Late Infected Cells
-        V4: -> V  ;  p * I2 - c * V ;                           // Extracellular Virus
-        V5: -> D  ;  delta_d * I2 / (K_delta + I2) ;            // Cleared Infected Cells (for Bookkeeping)
-        
-        //Parameters
-        beta = 2.4* 10^(-4) ;                                   // Virus Infective
-        p = 1.6 ;                                               // Virus Production
-        c = 13.0 ;                                              // Virus Clearance
-        k = 4.0 ;                                               // Eclipse phase
-        delta_d = 1.6 * 10^6 ;                                  // Infected Cell Clearance
-        K_delta = 4.5 * 10^5 ;                                  // Half Saturation Constant         
-        
-        // Initial Conditions ;
-        T0 = 1.0*10^7;
-        T = T0  ;                                               // Initial Number of Uninfected Cells
-        I1 = 75.0 ;                                             // Initial Number of Infected Cells
-end'''
+    //Parameters
+    k11 = 0.0 ; //Validation data dependent ; zero for most cases
+    k12 = 9.746
+    k13 = 12.511
+    k14 = 13.562
+    k21 = 10.385
+    t2 = 3.481
+    k31 = 45.922
+    k32 = 5.464
+    k33 = 0.068
+    t3 = 0.3
+    k41 = 0.115
+    k42 = 1.053
+    t4 = 0.3
+    k51 = 0.202
+    t5 = 0.3
+    k61 = 0.635
+    k71 = 1.537
+    k72 = 47.883
+    k73 = 0.197
+    n = 3.0
+
+    //Initial Conditions
+    P = 1.0
+    RIGI = 1.0
+    IRF7 = 0.72205
+    V = 6.9e-8
+'''
 
 
 class AmberFluModelSteppable(SteppableBasePy):
@@ -55,7 +72,7 @@ class AmberFluModelSteppable(SteppableBasePy):
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
 
         # Adding free floating antimony model
-        self.add_free_floating_antimony(model_string=ModelString, model_name='ambersmithsimple',
+        self.add_free_floating_antimony(model_string=model_string, model_name='ambersmithsimple',
                                         step_size=days_to_mcs)
         # Changing initial values according to discussions with Amber Smith
         state = {}
