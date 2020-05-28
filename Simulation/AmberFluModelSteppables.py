@@ -2,7 +2,7 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-plot_StandAlone = True
+plot_StandAlone = False
 plot_CellModel = True
 overlay_AmbersModel = True
 plot_Residuals = False
@@ -76,11 +76,23 @@ class AmberFluModelSteppable(SteppableBasePy):
                                         step_size=days_to_mcs)
         # Changing initial values according to discussions with Amber Smith
         state = {}
-        state['I1'] = 0.0
-        state['V'] = 75.0
         self.set_sbml_state(model_name='ambersmithsimple', state=state)
 
         # Initialize Graphic Window for Amber Smith ODE model
+        self.plot_win = self.add_new_plot_window(title='Jordan IFN',
+                                                 x_axis_title='Days',
+                                                 y_axis_title='Variables', x_scale_type='linear',
+                                                 y_scale_type='linear',
+                                                 grid=False, config_options={'legend': True})
+        self.plot_win.add_plot("IFN", style='Lines', color='blue', size=5)
+
+        self.plot_win2 = self.add_new_plot_window(title='Jordan Population',
+                                                 x_axis_title='Days',
+                                                 y_axis_title='Variables', x_scale_type='linear',
+                                                 y_scale_type='linear',
+                                                 grid=False, config_options={'legend': True})
+        self.plot_win2.add_plot("P", style='Lines', color='blue', size=5)
+
         if plot_StandAlone:
             self.plot_win = self.add_new_plot_window(title='Amber Smith Model Cells',
                                                      x_axis_title='Days',
@@ -101,6 +113,10 @@ class AmberFluModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         self.timestep_sbml()
+        self.plot_win.add_data_point("IFN", mcs * days_to_mcs,
+                                     self.sbml.ambersmithsimple['IFN'])
+        self.plot_win2.add_data_point("P", mcs * days_to_mcs,
+                                     self.sbml.ambersmithsimple['P'])
         if plot_StandAlone:
             self.plot_win.add_data_point("T", mcs * days_to_mcs,
                                          self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
