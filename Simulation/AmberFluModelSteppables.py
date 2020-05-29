@@ -7,11 +7,10 @@ plot_ODEStandAlone = False
 #  1 plot virus A
 #  2 plot virus B
 #  3 plot both viruses
-plot_ConinfectionODEtandAlone = False
+plot_CoinfectionODEtandAlone = False
 overlay_AmbersModelandCoinfection = False
 plot_CellModel = True
 overlay_AmbersModel = True
-plot_Residuals = False
 Data_writeout = False
 
 ## How to determine V
@@ -22,7 +21,7 @@ how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 4.0 #10 in the original model
+days_to_simulate = 4.0  # 10 in the original model
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -81,6 +80,7 @@ Coinfection_ModelString = '''
         I1 = 75.0 ;                                                 // Initial Number of Infected Cells
 end'''
 
+
 class AmberFluModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -110,6 +110,7 @@ class AmberFluModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         self.timestep_sbml()
+
 
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -216,39 +217,59 @@ class CellularModelSteppable(SteppableBasePy):
             self.ExtracellularVirusB += release.tot_amount
         self.ExtracellularVirusB -= c * VB
 
+
 class Data_OutputSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
         if Data_writeout:
-            folder_path = '/Users/Josua/Downloads/AmberFluModelv3/'
+            folder_path = '/Users/Josua/AmberFluModelData/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-            file_name = 'AmberFluModel.txt'
+            file_name = 'ODE_output.txt'
             self.output = open(folder_path + file_name, 'w')
             self.output.write(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time','AT', 'AI1', 'AI2', 'AD', 'AV', 'U', 'I1', 'I2', 'D', 'V'))
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'T', 'I1A', 'I2A', 'DA', 'VA', 'I1B', 'I2B', 'DB', 'VB'))
             self.output.flush()
+
+            file_name = 'Cellular_output.txt'
+            self.output2 = open(folder_path + file_name, 'w')
+            self.output2.write(
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'T', 'I1A', 'I2A', 'DA', 'VA', 'I1B', 'I2B', 'DB', 'VB'))
+            self.output2.flush()
+
         else:
             pass
 
     def step(self, mcs):
         if Data_writeout:
             # Record variables from ODE model
-            AT = self.sbml.ambersmithsimple['T']
-            AI1 = self.sbml.ambersmithsimple['I1']
-            AI2 = self.sbml.ambersmithsimple['I2']
-            AD = self.sbml.ambersmithsimple['D']
-            AV = self.sbml.ambersmithsimple['V']
+            d = mcs * days_to_mcs
+            AT = self.sbml.coinfection['T']
+            AI1A = self.sbml.coinfection['I1A']
+            AI2A = self.sbml.coinfection['I2A']
+            ADA = self.sbml.coinfection['DA']
+            AVA = self.sbml.coinfection['VA']
+            AI1B = self.sbml.coinfection['I1B']
+            AI2B = self.sbml.coinfection['I2B']
+            ADB = self.sbml.coinfection['DB']
+            AVB = self.sbml.coinfection['VB']
+
+            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+                d, AT, AI1A, AI2A, ADA, AVA, AI1B, AI2B, ADB, AVB))
+            self.output.flush()
 
             # Record variables from Cellularized Model
             d = mcs * days_to_mcs
-            U = len(self.cell_list_by_type(self.U))
-            I1 = len(self.cell_list_by_type(self.I1))
-            I2 = len(self.cell_list_by_type(self.I2))
-            D = len(self.cell_list_by_type(self.DEAD))
+            CU = len(self.cell_list_by_type(self.U))
+            CI1A = len(self.cell_list_by_type(self.I1))
+            CI2A = len(self.cell_list_by_type(self.I2))
+            CDA = len(self.cell_list_by_type(self.DEAD))
+            CI1B = len(self.cell_list_by_type(self.I1B))
+            CI2B = len(self.cell_list_by_type(self.I2B))
+            CDB = len(self.cell_list_by_type(self.DEADB))
 
             self.Virus_Field = 0
             secretor = self.get_field_secretor("Virus")
@@ -259,13 +280,23 @@ class Data_OutputSteppable(SteppableBasePy):
                 self.Virus_Field += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
-            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
-            d, AT, AI1, AI2, AD, AV, U, I1, I2, D, self.Virus_Field))
+            self.Virus_FieldB = 0
+            secretor = self.get_field_secretor("VirusB")
+            for cell in self.cell_list:
+                uptake_probability = 0.0000001
+                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                V = abs(uptake.tot_amount) / uptake_probability
+                self.Virus_FieldB += V
+                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+                d, CU, CI1A, CI2A, CDA, self.Virus_Field, CI1B, CI2B, CDB, self.Virus_FieldB))
             self.output.flush()
 
     def finish(self):
         if Data_writeout:
             self.output.close()
+
 
 class Plot_ODEsSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -291,13 +322,13 @@ class Plot_ODEsSteppable(SteppableBasePy):
                                                       grid=False, config_options={'legend': True})
             self.plot_win2.add_plot("V", style='Lines', color='blue', size=5)
 
-        # Initialize Graphic Window for Coninfection ODE model
-        if plot_ConinfectionODEtandAlone:
+        # Initialize Graphic Window for Coinfection ODE model
+        if plot_CoinfectionODEtandAlone:
             self.plot_win6 = self.add_new_plot_window(title='Coinfection ODE Model Cells',
-                                                     x_axis_title='Days',
-                                                     y_axis_title='Variables', x_scale_type='linear',
-                                                     y_scale_type='linear',
-                                                     grid=False, config_options={'legend': True})
+                                                      x_axis_title='Days',
+                                                      y_axis_title='Variables', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False, config_options={'legend': True})
 
             self.plot_win7 = self.add_new_plot_window(title='Coinfection ODE Model Virus',
                                                       x_axis_title='Days',
@@ -306,13 +337,13 @@ class Plot_ODEsSteppable(SteppableBasePy):
                                                       grid=False, config_options={'legend': True})
 
             self.plot_win6.add_plot("T", style='Lines', color='blue', size=5)
-            if plot_ConinfectionODEtandAlone == 1 or plot_ConinfectionODEtandAlone == 3:
+            if plot_CoinfectionODEtandAlone == 1 or plot_CoinfectionODEtandAlone == 3:
                 self.plot_win6.add_plot("I1A", style='Lines', color='yellow', size=5)
                 self.plot_win6.add_plot("I2A", style='Lines', color='red', size=5)
                 self.plot_win6.add_plot("DA", style='Lines', color='purple', size=5)
                 self.plot_win7.add_plot("VA", style='Lines', color='blue', size=5)
 
-            if plot_ConinfectionODEtandAlone == 2 or plot_ConinfectionODEtandAlone == 3:
+            if plot_CoinfectionODEtandAlone == 2 or plot_CoinfectionODEtandAlone == 3:
                 self.plot_win6.add_plot("I1B", style='Lines', color='green', size=5)
                 self.plot_win6.add_plot("I2B", style='Lines', color='magenta', size=5)
                 self.plot_win6.add_plot("DB", style='Lines', color='brown', size=5)
@@ -337,37 +368,37 @@ class Plot_ODEsSteppable(SteppableBasePy):
                                          self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
             self.plot_win2.add_data_point("V", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
-        if plot_ConinfectionODEtandAlone:
+        if plot_CoinfectionODEtandAlone:
             self.plot_win6.add_data_point("T", mcs * days_to_mcs,
-                                         self.sbml.coinfection['T'] / self.sbml.coinfection['T0'])
+                                          self.sbml.coinfection['T'] / self.sbml.coinfection['T0'])
 
-            if plot_ConinfectionODEtandAlone == 1 or plot_ConinfectionODEtandAlone == 3:
+            if plot_CoinfectionODEtandAlone == 1 or plot_CoinfectionODEtandAlone == 3:
                 self.plot_win6.add_data_point("I1A", mcs * days_to_mcs,
-                                             self.sbml.coinfection['I1A'] / self.sbml.coinfection['T0'])
+                                              self.sbml.coinfection['I1A'] / self.sbml.coinfection['T0'])
                 self.plot_win6.add_data_point("I2A", mcs * days_to_mcs,
-                                             self.sbml.coinfection['I2A'] / self.sbml.coinfection['T0'])
+                                              self.sbml.coinfection['I2A'] / self.sbml.coinfection['T0'])
                 self.plot_win6.add_data_point("DA", mcs * days_to_mcs,
-                                             self.sbml.coinfection['DA'] / self.sbml.coinfection['T0'])
+                                              self.sbml.coinfection['DA'] / self.sbml.coinfection['T0'])
                 self.plot_win7.add_data_point("VA", mcs * days_to_mcs, np.log10(self.sbml.coinfection['VA']))
 
-            if plot_ConinfectionODEtandAlone == 2 or plot_ConinfectionODEtandAlone == 3:
+            if plot_CoinfectionODEtandAlone == 2 or plot_CoinfectionODEtandAlone == 3:
                 self.plot_win6.add_data_point("I1B", mcs * days_to_mcs,
-                                             self.sbml.coinfection['I1B'] / self.sbml.coinfection['T0'])
+                                              self.sbml.coinfection['I1B'] / self.sbml.coinfection['T0'])
                 self.plot_win6.add_data_point("I2B", mcs * days_to_mcs,
-                                             self.sbml.coinfection['I2B'] / self.sbml.coinfection['T0'])
+                                              self.sbml.coinfection['I2B'] / self.sbml.coinfection['T0'])
                 self.plot_win6.add_data_point("DB", mcs * days_to_mcs,
-                                             self.sbml.coinfection['DB'] / self.sbml.coinfection['T0'])
+                                              self.sbml.coinfection['DB'] / self.sbml.coinfection['T0'])
                 self.plot_win7.add_data_point("VB", mcs * days_to_mcs, np.log10(self.sbml.coinfection['VB']))
 
             if overlay_AmbersModelandCoinfection:
                 self.plot_win6.add_data_point("TAmber", mcs * days_to_mcs,
-                                             self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
+                                              self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win6.add_data_point("I1Amber", mcs * days_to_mcs,
-                                             self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
+                                              self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win6.add_data_point("I2Amber", mcs * days_to_mcs,
-                                             self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
+                                              self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win6.add_data_point("DAmber", mcs * days_to_mcs,
-                                             self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
+                                              self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win7.add_data_point("VAmber", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
 
